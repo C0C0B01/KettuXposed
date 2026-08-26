@@ -52,7 +52,7 @@ object FontsModule : Module() {
 
     override fun onLoad(packageParam: XC_LoadPackage.LoadPackageParam) = with(packageParam) {
         XposedHelpers.findAndHookMethod(
-            "com.facebook.react.views.text.ReactFontManager\$Companion",
+            "com.facebook.react.common.assets.ReactFontManager\$Companion",
             classLoader,
             "createAssetTypeface",
             String::class.java,
