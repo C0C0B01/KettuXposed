@@ -8,7 +8,7 @@ import cocobo1.pupu.xposed.BuildConfig
 import io.github.revenge.xposed.Constants
 import io.github.revenge.xposed.Module
 import io.github.revenge.xposed.Utils.Companion.JSON
-import io.github.revenge.xposed.Utils.log
+import io.github.revenge.xposed.Utils.Log
 import io.github.revenge.xposed.modules.HookScriptLoaderModule.PRELOADS_DIR
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put

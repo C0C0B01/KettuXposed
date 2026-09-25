@@ -7,7 +7,7 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage
 import io.github.revenge.xposed.Constants
 import io.github.revenge.xposed.Module
 import io.github.revenge.xposed.Utils.Companion.JSON
-import io.github.revenge.xposed.Utils.log
+import io.github.revenge.xposed.Utils.Log
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObjectBuilder
