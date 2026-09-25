@@ -7,6 +7,7 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage
 import io.github.revenge.xposed.Constants
 import io.github.revenge.xposed.Module
 import io.github.revenge.xposed.Utils.Companion.JSON
+import io.github.revenge.xposed.Utils.log
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObjectBuilder
@@ -81,11 +82,16 @@ object ThemesModule : Module() {
     }
 
     fun hookTheme() {
-        val themeManager = param.classLoader.loadClass("com.discord.theme.utils.ColorUtilsKt")
-        val darkTheme = param.classLoader.loadClass("com.discord.theme.DarkerTheme")
-        val lightTheme = param.classLoader.loadClass("com.discord.theme.LightTheme")
-
         val theme = this.theme ?: return
+
+        val themeManager = param.classLoader.safeLoadClass("com.discord.theme.utils.ColorUtilsKt")
+        val darkTheme = param.classLoader.safeLoadClass("com.discord.theme.DarkerTheme")
+        val lightTheme = param.classLoader.safeLoadClass("com.discord.theme.LightTheme")
+
+        if (themeManager == null || darkTheme == null || lightTheme == null) {
+            Log.e("Failed to load Discord theme classes, skipping theme hooks")
+            return
+        }
 
         // Apply rawColors
         theme.data.rawColors?.forEach { (key, value) ->
@@ -106,17 +112,6 @@ object ThemesModule : Module() {
 
         // If there's any rawColors value, hook the color getter
         if (!theme.data.rawColors.isNullOrEmpty()) {
-            val getColorCompat = themeManager.getDeclaredMethod(
-                "getColorCompat",
-                Resources::class.java,
-                Int::class.javaPrimitiveType,
-                Resources.Theme::class.java,
-            )
-
-            val getColorCompatLegacy = themeManager.getDeclaredMethod(
-                "getColorCompat", Context::class.java, Int::class.javaPrimitiveType
-            )
-
             val patch = MethodHookBuilder().run {
                 before {
                     val arg1 = args[0]
@@ -129,8 +124,21 @@ object ThemesModule : Module() {
                 build()
             }
 
-            getColorCompat.hook(patch)
-            getColorCompatLegacy.hook(patch)
+            listOf(
+                runCatching {
+                    themeManager.getDeclaredMethod(
+                        "getColorCompat",
+                        Resources::class.java,
+                        Int::class.javaPrimitiveType,
+                        Resources.Theme::class.java,
+                    )
+                }.getOrNull(),
+                runCatching {
+                    themeManager.getDeclaredMethod(
+                        "getColorCompat", Context::class.java, Int::class.javaPrimitiveType
+                    )
+                }.getOrNull()
+            ).filterNotNull().forEach { it.hook(patch) }
         }
     }
 

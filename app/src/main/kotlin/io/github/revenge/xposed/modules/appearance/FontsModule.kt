@@ -40,6 +40,11 @@ object FontsModule : Module() {
     private val FILE_EXTENSIONS = arrayOf(".ttf", ".otf")
     private const val FONTS_ASSET_PATH = "fonts/"
 
+    private val FONT_MANAGER_CLASSES = arrayOf(
+        "com.facebook.react.views.text.ReactFontManager\$Companion",
+        "com.facebook.react.common.assets.ReactFontManager\$Companion",
+    )
+
     private lateinit var fontsDir: File
     private lateinit var fontsDownloadsDir: File
     private var fontsAbsPath: String? = null
@@ -51,21 +56,33 @@ object FontsModule : Module() {
     }
 
     override fun onLoad(packageParam: XC_LoadPackage.LoadPackageParam) = with(packageParam) {
-        XposedHelpers.findAndHookMethod(
-            "com.facebook.react.common.assets.ReactFontManager\$Companion",
-            classLoader,
-            "createAssetTypeface",
-            String::class.java,
-            Int::class.java,
-            "android.content.res.AssetManager",
-            object : XC_MethodReplacement() {
-                override fun replaceHookedMethod(param: MethodHookParam): Typeface? {
-                    val fontFamilyName: String = param.args[0].toString()
-                    val style: Int = param.args[1] as Int
-                    val assetManager: AssetManager = param.args[2] as AssetManager
-                    return createAssetTypeface(fontFamilyName, style, assetManager)
-                }
-            })
+        val replacement = object : XC_MethodReplacement() {
+            override fun replaceHookedMethod(param: MethodHookParam): Typeface? {
+                val fontFamilyName: String = param.args[0].toString()
+                val style: Int = param.args[1] as Int
+                val assetManager: AssetManager = param.args[2] as AssetManager
+                return createAssetTypeface(fontFamilyName, style, assetManager)
+            }
+        }
+
+        // React Native moved ReactFontManager between releases, so try every known package.
+        // Never let this throw: an uncaught error here aborts the whole module chain.
+        val hooked = FONT_MANAGER_CLASSES.any { className ->
+            runCatching {
+                XposedHelpers.findAndHookMethod(
+                    className,
+                    classLoader,
+                    "createAssetTypeface",
+                    String::class.java,
+                    Int::class.java,
+                    "android.content.res.AssetManager",
+                    replacement
+                )
+            }.onFailure { Log.e("Failed to hook createAssetTypeface on $className", it) }
+                .isSuccess
+        }
+
+        if (!hooked) Log.e("Failed to hook createAssetTypeface on all known ReactFontManager classes")
 
         val fontDefFile = File(appInfo.dataDir, "${Constants.FILES_DIR}/fonts.json").apply { asFile() }
         if (!fontDefFile.exists()) return@with

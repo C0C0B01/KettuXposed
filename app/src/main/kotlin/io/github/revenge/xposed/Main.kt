@@ -56,7 +56,7 @@ class Main : Module(), IXposedHookLoadPackage, IXposedHookZygoteInit {
     }
 
     override fun initZygote(startupParam: IXposedHookZygoteInit.StartupParam) {
-        for (module in modules) module.onInit(startupParam)
+        dispatch("onInit") { module -> module.onInit(startupParam) }
     }
 
     override fun handleLoadPackage(param: XC_LoadPackage.LoadPackageParam) = with(param) {
@@ -94,14 +94,25 @@ class Main : Module(), IXposedHookLoadPackage, IXposedHookZygoteInit {
     }
 
     override fun onLoad(packageParam: XC_LoadPackage.LoadPackageParam) {
-        for (module in modules) module.onLoad(packageParam)
+        dispatch("onLoad") { module -> module.onLoad(packageParam) }
     }
 
     override fun onContext(context: Context) {
-        for (module in modules) module.onContext(context)
+        dispatch("onContext") { module -> module.onContext(context) }
     }
 
     override fun onActivity(activity: Activity) {
-        for (module in modules) module.onActivity(activity)
+        dispatch("onActivity") { module -> module.onActivity(activity) }
+    }
+
+    private fun dispatch(stage: String, block: (Module) -> Unit) {
+        for (module in modules) {
+            val name = module.javaClass.simpleName.ifEmpty { module.javaClass.name }
+            try {
+                block(module)
+            } catch (e: Throwable) {
+                Log.e("Module $name failed during $stage", e)
+            }
+        }
     }
 }
